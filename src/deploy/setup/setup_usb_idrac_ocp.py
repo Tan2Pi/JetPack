@@ -89,21 +89,22 @@ def setup():
                     'cd ~;cp ~/ansible/JetPack/src/pilot/dell_systems.json /mnt/usb/ansible/pilot/',
                     'sync; umount /mnt/usb']
         elif args.idrac_bundle_iso:
-            work_dir = '/tmp' # depending on storage constrainst, maybe a different mount path would be good
-            label_cmd = 'export LABEL=$(blkid {} | cut -d " " -f 4 | cut -d "=" -f 2 | tr -d \'"\') '.format(settings.rhel_iso)
+            work_dir = '/home' # depending on storage constrainst, maybe a different mount path would be good
+            label_cmd = f'export LABEL=$(blkid {settings.rhel_iso} | cut -d " " -f 4 | cut -d "=" -f 2 | tr -d \'"\') '
             sed_cmd_isolinux = 'sed -i "0,/append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL/s//append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:\/ks.cfg/" /tmp/rhel8/isolinux/isolinux.cfg'
             sed_cmd_grub = 'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" /tmp/rhel8/EFI/BOOT/grub.cfg'
-            cmds = ['cd ~; rm -f /tmp/ocp_csah_dvd.iso',
-                    'rm -rf /tmp/rhel8/', # clean up any existing iso files
-                    'cd ~; mount -o loop {} /mnt'.format(settings.rhel_iso),
+            cmds = [f'cd ~; rm -f {work_dir}/ocp_csah_dvd.iso',
+                    'cd ~; umount /mnt',
+                    f'rm -rf {work_dir}/rhel8/', # clean up any existing iso files
+                    f'cd ~; mount -o loop {settings.rhel_iso} /mnt',
                     'shopt -s dotglob',
-                    'mkdir /tmp/rhel8', # /tmp/rhel8 needs enough space for the whole iso, ~8gb
-                    'cp -avRf /mnt/* /tmp/rhel8',
-                    'cd ~; cp ocp-csah.ks /tmp/rhel8/ks.cfg',
-                    'cd ~; {}; {}'.format(label_cmd, sed_cmd_isolinux),
-                    'cd ~; {}; {}'.format(label_cmd, sed_cmd_grub),
-                    'cd /tmp/rhel8; {}; mkisofs -o /tmp/ocp_csah_dvd.iso -b isolinux/isolinux.bin -J -R -l -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -graft-points -V "$LABEL" .'.format(label_cmd),
-                    'isohybrid --uefi /tmp/ocp_csah_dvd.iso'
+                    f'mkdir {work_dir}/rhel8', # /tmp/rhel8 needs enough space for the whole iso, ~8gb
+                    f'cp -avRf /mnt/* {work_dir}/rhel8',
+                    f'cd ~; cp ocp-csah.ks {work_dir}/rhel8/ks.cfg',
+                    f'cd ~; {label_cmd}; {sed_cmd_isolinux}',
+                    f'cd ~; {label_cmd}; {sed_cmd_grub}',
+                    f'cd {work_dir}/rhel8; {label_cmd}; mkisofs -o {work_dir}/ocp_csah_dvd.iso -b isolinux/isolinux.bin -J -R -l -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -graft-points -V "$LABEL" .',
+                    f'isohybrid --uefi {work_dir}/ocp_csah_dvd.iso'
             ]
         else:
             cmds = ['mkfs.ext3 -F ' + args.usb_key,
