@@ -94,8 +94,6 @@ def setup():
             sed_cmd_isolinux = f'sed -i "0,/append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL/s//append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:\/ks.cfg/" {work_dir}/rhel8/isolinux/isolinux.cfg'
             sed_cmd_grub = f'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" {work_dir}/rhel8/EFI/BOOT/grub.cfg'
             cmds = [f'cd ~; rm -f {work_dir}/ocp_csah_dvd.iso',
-                    'cd ~; umount /mnt',
-                    f'rm -rf {work_dir}/rhel8/', # clean up any existing iso files
                     f'cd ~; mount -o loop {settings.rhel_iso} /mnt',
                     'shopt -s dotglob',
                     f'mkdir {work_dir}/rhel8', # /tmp/rhel8 needs enough space for the whole iso, ~8gb
@@ -104,7 +102,9 @@ def setup():
                     f'cd ~; {label_cmd}; {sed_cmd_isolinux}',
                     f'cd ~; {label_cmd}; {sed_cmd_grub}',
                     f'cd {work_dir}/rhel8; {label_cmd}; mkisofs -o {work_dir}/ocp_csah_dvd.iso -b isolinux/isolinux.bin -J -R -l -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -graft-points -V "$LABEL" .',
-                    f'isohybrid --uefi {work_dir}/ocp_csah_dvd.iso'
+                    f'isohybrid --uefi {work_dir}/ocp_csah_dvd.iso',
+                    'cd ~; umount /mnt',
+                    f'rm -rf {work_dir}/rhel8/' # clean up any existing iso files
             ]
         else:
             cmds = ['mkfs.ext3 -F ' + args.usb_key,
