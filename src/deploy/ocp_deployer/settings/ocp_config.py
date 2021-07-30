@@ -59,7 +59,7 @@ class OCP_Settings:
             self.ocp_version = deploy_settings['ocp_version']
             self.cluster_name = deploy_settings['cluster_name']
 
-            self.computes_pxe_nic = deploy_settings['comnpute_nodes_pxe_interface']
+            self.computes_pxe_nic = deploy_settings['compute_nodes_pxe_interface']
             self.controllers_pxe_nic = deploy_settings['control_nodes_pxe_interface']
 
             self.boot_disk_controllers = deploy_settings['boot_disk_controllers']
@@ -94,6 +94,7 @@ class OCP_Settings:
             self.bridge_mtu = csah_settings['bridge_mtu'] 
 
             self.install_disk = csah_settings['install_disk']
+            self.rhel_iso = csah_settings['rhel_iso']
 
 
             self.csah_kickstart = self.cloud_repo_dir + "/src/mgmt/ocp-csah.ks"
