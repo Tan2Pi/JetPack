@@ -50,16 +50,21 @@ def setup():
         parser.add_argument('-idrac_vmedia_img', '--idrac_vmedia_img',
                             help='Use an idrac virtual media image',
                             action='store_true', required=False)
+        parser.add_argument('-idrac_bundle_iso', '--idrac_bundle_iso',
+                            help='Bundles generated kickstart into provided RHEL 8.x ISO',
+                            action='store_true', required=False)
 
         args, ignore = parser.parse_known_args()
 
-        if args.usb_key is None and args.idrac_vmedia_img is False:
+        if args.usb_key is None and args.idrac_vmedia_img is False and not args.idrac_bundle_iso:
             raise AssertionError("You need to spefify the type of" +
                                  " installation to perform \n" +
                                  "-usb_key devideID if using a " +
                                  "physical key\n" +
                                  "-idrac_vmedia_img if using " +
-                                 "an idrac virtual media image")
+                                 "an idrac virtual media image\n" + 
+                                 "-idrac_bundle_iso if using " + 
+                                 "a RHEL 8.x ISO with an embedded kickstart\n")
 
         logger.debug("loading settings files " + args.settings)
         settings = Settings(args.settings)
@@ -83,6 +88,23 @@ def setup():
                     'cd ~;mkdir -p /mnt/usb/ansible/pilot',
                     'cd ~;cp ~/ansible/JetPack/src/pilot/dell_systems.json /mnt/usb/ansible/pilot/',
                     'sync; umount /mnt/usb']
+        elif args.idrac_bundle_iso:
+            work_dir = '/tmp' # depending on storage constrainst, maybe a different mount path would be good
+            label_cmd = 'export LABEL=$(blkid {} | cut -d " " -f 4 | cut -d "=" -f 2 | tr -d \'"\') '.format(settings.rhel_iso)
+            sed_cmd_isolinux = 'sed -i "0,/append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL/s//append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:\/ks.cfg/" /tmp/rhel8/isolinux/isolinux.cfg'
+            sed_cmd_grub = 'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" /tmp/rhel8/EFI/BOOT/grub.cfg'
+            cmds = ['cd ~; rm -f /tmp/ocp_csah_dvd.iso',
+                    'rm -rf /tmp/rhel8/', # clean up any existing iso files
+                    'cd ~; mount -o loop {} /mnt'.format(settings.rhel_iso),
+                    'shopt -s dotglob',
+                    'mkdir /tmp/rhel8', # /tmp/rhel8 needs enough space for the whole iso, ~8gb
+                    'cp -avRf /mnt/* /tmp/rhel8',
+                    'cd ~; cp ocp-csah.ks /tmp/rhel8/ks.cfg',
+                    'cd ~; {}; {}'.format(label_cmd, sed_cmd_isolinux),
+                    'cd ~; {}; {}'.format(label_cmd, sed_cmd_grub),
+                    'cd /tmp/rhel8; {}; mkisofs -o /tmp/ocp_csah_dvd.iso -b isolinux/isolinux.bin -J -R -l -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -graft-points -V "$LABEL" .'.format(label_cmd),
+                    'isohybrid --uefi /tmp/ocp_csah_dvd.iso'
+            ]
         else:
             cmds = ['mkfs.ext3 -F ' + args.usb_key,
                     'mkdir -p /mnt/usb',
