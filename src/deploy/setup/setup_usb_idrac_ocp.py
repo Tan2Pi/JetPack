@@ -91,8 +91,8 @@ def setup():
         elif args.idrac_bundle_iso:
             work_dir = '/home' # depending on storage constrainst, maybe a different mount path would be good
             label_cmd = f'export LABEL=$(blkid {settings.rhel_iso} | cut -d " " -f 4 | cut -d "=" -f 2 | tr -d \'"\') '
-            sed_cmd_isolinux = 'sed -i "0,/append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL/s//append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:\/ks.cfg/" /tmp/rhel8/isolinux/isolinux.cfg'
-            sed_cmd_grub = 'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" /tmp/rhel8/EFI/BOOT/grub.cfg'
+            sed_cmd_isolinux = f'sed -i "0,/append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL/s//append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:\/ks.cfg/" {work_dir}/rhel8/isolinux/isolinux.cfg'
+            sed_cmd_grub = f'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" {work_dir}/rhel8/EFI/BOOT/grub.cfg'
             cmds = [f'cd ~; rm -f {work_dir}/ocp_csah_dvd.iso',
                     'cd ~; umount /mnt',
                     f'rm -rf {work_dir}/rhel8/', # clean up any existing iso files
