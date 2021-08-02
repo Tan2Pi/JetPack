@@ -61,7 +61,7 @@ class OCP_Settings:
             self.ocp_version = deploy_settings['ocp_version']
             self.cluster_name = deploy_settings['cluster_name']
 
-            self.computes_pxe_nic = deploy_settings['comnpute_nodes_pxe_interface']
+            self.computes_pxe_nic = deploy_settings['compute_nodes_pxe_interface']
             self.controllers_pxe_nic = deploy_settings['control_nodes_pxe_interface']
 
             self.boot_disk_controllers = deploy_settings['boot_disk_controllers']
