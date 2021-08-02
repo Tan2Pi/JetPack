@@ -2,8 +2,7 @@ csah:
   - name: csah
     ip_os: 100.82.46.20
 bootstrap_kvm:
-  - name: bootstrap
-    ip_os: 100.82.46.19
+  - ip_os: 100.82.46.19
 control_nodes:
   - name: control1
     ip_os: 100.82.46.21
