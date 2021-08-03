@@ -55,8 +55,6 @@ class OCP_Settings:
             deploy_settings = self.get_settings_section(
                 "Deployment Settings")
             self.nodes_yaml = deploy_settings['nodes_yaml']
-            # bootstrap vm name shouldn't change, but should also be a variable
-            self.nodes_yaml['bootstrap_kvm'][0]['name'] = 'bootstrap'
             self.csah_root_pwd = deploy_settings['csah_root_password']
             self.ocp_version = deploy_settings['ocp_version']
             self.cluster_type = deploy_settings['cluster_type']
@@ -109,6 +107,8 @@ class OCP_Settings:
             self.compute_nodes = []
             self.csah_node = OCP_node(nodes['csah'][0], None, None)
             logger.debug(self.csah_node)
+            # bootstrap vm name shouldn't change, but should also be a variable
+            nodes['bootstrap_kvm'][0]['name'] = 'bootstrap'
             self.bootstrap_node = OCP_node(nodes['bootstrap_kvm'][0], None, None)
             for control in nodes['control_nodes']:
                 self.controller_nodes.append(OCP_node(control, self.ipmi_user, self.ipmi_pwd))
