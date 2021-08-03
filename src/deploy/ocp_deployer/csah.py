@@ -49,7 +49,10 @@ class CSah(InfraHost):
             # Power off all control & compute nodes
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             logger.info("Powering off Control & Compute nodes")
-            for node in ( self.settings.controller_nodes + self.settings.compute_nodes):
+            nodes = self.settings.controller_nodes
+            if self.settings.cluster_type != '3-node':
+                nodes += self.settings.compute_nodes
+            for node in nodes:
                 logger.debug("powering off " + node.name )
                 drac_client = DRACClient(node.idrac_ip, self.settings.ipmi_user, self.settings.ipmi_pwd)
                 if "POWER_ON" in drac_client.get_power_state():
@@ -260,7 +263,10 @@ class CSah(InfraHost):
             cmd = 'rm -rf instackenv.json'
             subprocess.call(cmd, shell=True, cwd='/home/ansible/')
 
-            nodes = self.settings.controller_nodes  + self.settings.compute_nodes
+            if self.settings.cluster_type == '3-node':
+                nodes = self.settings.controller_nodes
+            else:
+                nodes = self.settings.controller_nodes + self.settings.compute_nodes
             cmd = "./discover_nodes.py  -u " + \
                 self.settings.ipmi_user + \
                 " -p '" + self.settings.ipmi_pwd + "'"
@@ -277,9 +283,10 @@ class CSah(InfraHost):
             for node in self.settings.controller_nodes:
                 node_id = node.idrac_ip
                 json_config[node_id]["pxe_nic"] = self.settings.controllers_pxe_nic
-            for node in self.settings.compute_nodes:
-                node_id = node.idrac_ip
-                json_config[node_id]["pxe_nic"] = self.settings.computes_pxe_nic
+            if self.settings.cluster_type != '3-node':
+                for node in self.settings.compute_nodes:
+                    node_id = node.idrac_ip
+                    json_config[node_id]["pxe_nic"] = self.settings.computes_pxe_nic
             if json_config.items():
                 cmd += "-j '{}'".format(json.dumps(json_config))
             subprocess.call(cmd, shell=True, cwd='/home/ansible/JetPack/src/pilot')
@@ -298,14 +305,15 @@ class CSah(InfraHost):
                                          diskname_master=self.settings.boot_disk_controllers,
                                          diskname_worker=self.settings.boot_disk_computes,
                                          dns_forwarder=self.settings.name_server,
-                                         cluster_name=self.settings.cluster_name
+                                         cluster_name=self.settings.cluster_name,
+                                         cluster_type=self.settings.cluster_type
                                          )                
             gen_inv_file.run()
             logger.debug("add pull secret to inventory")
             with open('generated_inventory', 'a') as file:
                 file.write('    pull_secret_file: pullsecret')
 
-            logger.debug("copy generated inventory filei & pullsecret")
+            logger.debug("copy generated inventory file & pullsecret")
             shutil.copyfile(self.settings.pull_secret_file, '/home/ansible/files/pullsecret')
             shutil.copyfile('generated_inventory', '/home/ansible/JetPack/src/pilot/ansible/generated_inventory') 
 

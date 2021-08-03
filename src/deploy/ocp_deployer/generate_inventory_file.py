@@ -21,11 +21,12 @@ from nodes import get_nodes_info
 
 class InventoryFile:
     def __init__(self, inventory_dict = {}, id_user='', id_pass='', version='', z_stream='latest', rhcos='latest', nodes_inventory='',
-                 diskname_master='', diskname_worker='', dns_forwarder='', cluster_name=''):
+                 diskname_master='', diskname_worker='', dns_forwarder='', cluster_name='', cluster_type='5+node'):
         self.inventory_dict = inventory_dict
         self.id_user = id_user
         self.id_pass = id_pass
         self.version = str(version)
+        self.cluster_type = cluster_type # values can be either '3-node' or '5+node'
 
         if z_stream != 'latest':
             self.z_stream_release = self.version + '.' + z_stream
@@ -158,6 +159,10 @@ class InventoryFile:
         2. 5+ node (3 control and 2+ compute)
         """
         logging.info('supported cluster install options: {}'.format(supported_install))
+        if self.cluster_type == '3-node':
+            self.cluster_install = 1
+        else:
+            self.cluster_install = 2 
         valid_choices = [1, 2]
         while self.cluster_install not in valid_choices:
             try:
