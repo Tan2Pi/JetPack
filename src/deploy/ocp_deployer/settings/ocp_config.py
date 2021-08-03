@@ -95,6 +95,7 @@ class OCP_Settings:
 
             self.install_disk = csah_settings['install_disk']
             self.rhel_iso = csah_settings['rhel_iso']
+            self.bundle_iso_dir = csah_settings['bundle_iso_dir']
 
 
             self.csah_kickstart = self.cloud_repo_dir + "/src/mgmt/ocp-csah.ks"

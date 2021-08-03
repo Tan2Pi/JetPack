@@ -89,7 +89,7 @@ def setup():
                     'cd ~;cp ~/ansible/JetPack/src/pilot/dell_systems.json /mnt/usb/ansible/pilot/',
                     'sync; umount /mnt/usb']
         elif args.idrac_bundle_iso:
-            work_dir = '/home' # depending on storage constrainst, maybe a different mount path would be good
+            work_dir = settings.bundle_iso_dir # depending on storage constraints, maybe a different mount path would be good
             label_cmd = f'export LABEL=$(blkid {settings.rhel_iso} | cut -d " " -f 4 | cut -d "=" -f 2 | tr -d \'"\') '
             sed_cmd_isolinux = f'sed -i "0,/append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL/s//append initrd=initrd.img inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:\/ks.cfg/" {work_dir}/rhel8/isolinux/isolinux.cfg'
             sed_cmd_grub = f'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" {work_dir}/rhel8/EFI/BOOT/grub.cfg'
@@ -101,6 +101,7 @@ def setup():
                     f'cd ~; cp ocp-csah.ks {work_dir}/rhel8/ks.cfg',
                     f'cd ~; {label_cmd}; {sed_cmd_isolinux}',
                     f'cd ~; {label_cmd}; {sed_cmd_grub}',
+                    f"cd ~; sed -i 's/set default=\"1\"/set default=\"0\"/' {work_dir}/rhel8/EFI/BOOT/grub.cfg",
                     f'cd {work_dir}/rhel8; {label_cmd}; mkisofs -o {work_dir}/ocp_csah_dvd.iso -b isolinux/isolinux.bin -J -R -l -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e images/efiboot.img -no-emul-boot -graft-points -V "$LABEL" .',
                     f'isohybrid --uefi {work_dir}/ocp_csah_dvd.iso',
                     'cd ~; umount /mnt',
@@ -125,6 +126,9 @@ def setup():
 
         if args.idrac_vmedia_img:
             logger.info("All done - attach ~/ocp_ks.img to the sah node" +
+                        " & continue with the deployment ...")
+        elif args.idrac_bundle_iso:
+            logger.info(f"All done - attach {work_dir}/ocp_csah_dvd.iso to the csah node" + 
                         " & continue with the deployment ...")
         else:
             logger.info("All done - plug the usb into the sah node" +
