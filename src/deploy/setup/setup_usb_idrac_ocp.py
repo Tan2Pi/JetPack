@@ -95,9 +95,8 @@ def setup():
             sed_cmd_grub = f'sed -i "s|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL quiet|linuxefi /images/pxeboot/vmlinuz inst.stage2=hd:LABEL=$LABEL inst.ks=cdrom:/ks.cfg quiet|" {work_dir}/rhel8/EFI/BOOT/grub.cfg'
             cmds = [f'cd ~; rm -f {work_dir}/ocp_csah_dvd.iso',
                     f'cd ~; mount -o loop {settings.rhel_iso} /mnt',
-                    'shopt -s dotglob',
                     f'mkdir {work_dir}/rhel8', # /tmp/rhel8 needs enough space for the whole iso, ~8gb
-                    f'cp -avRf /mnt/* {work_dir}/rhel8',
+                    f'shopt -s dotglob; cp -avRf /mnt/* {work_dir}/rhel8',
                     f'cd ~; cp ocp-csah.ks {work_dir}/rhel8/ks.cfg',
                     f'cd ~; {label_cmd}; {sed_cmd_isolinux}',
                     f'cd ~; {label_cmd}; {sed_cmd_grub}',
