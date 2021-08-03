@@ -115,7 +115,8 @@ def deploy():
     csah.wait_for_controllers_ready()
 
     csah.complete_bootstrap_process()
-    csah.pxe_boot_computes()
+    if settings.cluster_type != '3-node':
+        csah.pxe_boot_computes()
     csah.wait_for_operators_ready()
     csah.complete_cluster_setup()
 

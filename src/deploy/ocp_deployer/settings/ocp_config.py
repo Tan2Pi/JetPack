@@ -55,15 +55,19 @@ class OCP_Settings:
             deploy_settings = self.get_settings_section(
                 "Deployment Settings")
             self.nodes_yaml = deploy_settings['nodes_yaml']
+            # bootstrap vm name shouldn't change, but should also be a variable
+            self.nodes_yaml['bootstrap_kvm'][0]['name'] = 'bootstrap'
             self.csah_root_pwd = deploy_settings['csah_root_password']
             self.ocp_version = deploy_settings['ocp_version']
+            self.cluster_type = deploy_settings['cluster_type']
             self.cluster_name = deploy_settings['cluster_name']
 
-            self.computes_pxe_nic = deploy_settings['compute_nodes_pxe_interface']
             self.controllers_pxe_nic = deploy_settings['control_nodes_pxe_interface']
-
             self.boot_disk_controllers = deploy_settings['boot_disk_controllers']
-            self.boot_disk_computes = deploy_settings['boot_disk_computes']
+            
+            if self.cluster_name != '3-node':
+                self.computes_pxe_nic = deploy_settings['compute_nodes_pxe_interface']
+                self.boot_disk_computes = deploy_settings['boot_disk_computes']
             
             self.pull_secret_file = deploy_settings['pull_secret_file']
             self.ansible_password = deploy_settings['ansible_password']
@@ -110,8 +114,9 @@ class OCP_Settings:
             self.bootstrap_node = OCP_node(nodes['bootstrap_kvm'][0], None, None)
             for control in nodes['control_nodes']:
                 self.controller_nodes.append(OCP_node(control, self.ipmi_user, self.ipmi_pwd))
-            for comp in nodes['compute_nodes']:
-                self.compute_nodes.append(OCP_node(comp, self.ipmi_user, self.ipmi_pwd))
+            if self.cluster_type != '3-node':
+                for comp in nodes['compute_nodes']:
+                    self.compute_nodes.append(OCP_node(comp, self.ipmi_user, self.ipmi_pwd))
 
 
             OCP_Settings.settings = self

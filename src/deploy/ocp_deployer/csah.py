@@ -33,7 +33,7 @@ class CSah(InfraHost):
 
             self.settings = OCP_Settings.settings
             self.root_user = "root"
-            self_root_pwd = self.settings.csah_root_pwd
+            self.root_pwd = self.settings.csah_root_pwd
             self.home_dir = "/home/ansible/JetPack/src"
             self.pilot_dir = os.path.join(self.home_dir, "pilot/")
             self.templates_dir = os.path.join(self.pilot_dir, "ocp_templates/")
@@ -41,6 +41,7 @@ class CSah(InfraHost):
             self.chrony_file = self.ntp_dir + "chrony.conf"
             self.worker_ntp_manifest = self.ntp_dir + "99-worker-chrony-configuration.yml"
             self.master_ntp_manifest = self.ntp_dir + "99-master-chrony-configuration.yml"
+            self.bootstrap_name = self.settings.bootstrap_node.name
 
 
 
@@ -48,7 +49,10 @@ class CSah(InfraHost):
             # Power off all control & compute nodes
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             logger.info("Powering off Control & Compute nodes")
-            for node in ( self.settings.controller_nodes + self.settings.compute_nodes):
+            nodes = self.settings.controller_nodes
+            if self.settings.cluster_type != '3-node':
+                nodes += self.settings.compute_nodes
+            for node in nodes:
                 logger.debug("powering off " + node.name )
                 drac_client = DRACClient(node.idrac_ip, self.settings.ipmi_user, self.settings.ipmi_pwd)
                 if "POWER_ON" in drac_client.get_power_state():
@@ -75,10 +79,10 @@ class CSah(InfraHost):
                                          "root",
                                          self.settings.csah_root_pwd,
                                          cmd)
-                if 'bootstrap' in str(re):
+                if self.bootstrap_name in str(re):
                     cmds = [
-                        'virsh undefine --nvram "bootstrapkvm"',
-                        'virsh destroy bootstrapkvm']
+                        f'virsh undefine --nvram "{self.bootstrap_name}"',
+                        f'virsh destroy {self.bootstrap_name}']
                     for cm in cmds:
                         Ssh.execute_command("localhost",
                                             "root",
@@ -86,7 +90,7 @@ class CSah(InfraHost):
                                             cm)
                 else:
                     bBoostrapDestroyed = True
-            cmd = 'rm -rf /home/bootstrapvm-disk.qcow2'
+            cmd = f'rm -rf /home/{self.bootstrap_name}-disk.qcow2'
             Ssh.execute_command("localhost", "root", self.settings.csah_root_pwd, cmd)
 
         def run_playbooks(self):
@@ -104,7 +108,7 @@ class CSah(InfraHost):
         def create_bootstrap_vm(self):
             logger.info("- Create the bootstrap VM")
             bootstrap_mac = self.get_inventory()['all']['vars']['bootstrap_node'][0]['mac']
-            cmd = 'virt-install --name bootstrapkvm --ram 20480 --vcpu 8 --disk path=/home/bootstrapvm-disk.qcow2,format=qcow2,size=20 --os-variant generic --network=bridge=br0,model=virtio,mac=' + bootstrap_mac + ' --pxe --boot uefi,hd,network --noautoconsole --autostart &'
+            cmd = f'virt-install --name {self.bootstrap_name} --ram 20480 --vcpu 8 --disk path=/home/{self.bootstrap_name}-disk.qcow2,format=qcow2,size=20 --os-variant generic --network=bridge=br0,model=virtio,mac={bootstrap_mac} --pxe --boot uefi,hd,network --noautoconsole --autostart &'
             re = Ssh.execute_command("localhost",
                                     "root",
                                     self.settings.csah_root_pwd,
@@ -114,7 +118,7 @@ class CSah(InfraHost):
         def wait_for_bootstrap_ready(self):
             bBootstrap_ready = False
             while bBootstrap_ready is False:
-                cmd = 'sudo su - core -c \'ssh -o "StrictHostKeyChecking no " bootstrap sudo ss -tulpn | grep -E "6443|22623|2379"\''
+                cmd = f'sudo su - core -c \'ssh -o "StrictHostKeyChecking no " {self.bootstrap_name} sudo ss -tulpn | grep -E "6443|22623|2379"\''
                 openedPorts= Ssh.execute_command_tty("localhost",
                                                  "root",
                                                  self.settings.csah_root_pwd,
@@ -132,7 +136,7 @@ class CSah(InfraHost):
                     Ssh.execute_command("localhost",
                                     "root",
                                     self.settings.csah_root_pwd,
-                                    "virsh start bootstrapkvm")
+                                    f"virsh start {self.bootstrap_name}")
                 time.sleep(60)
             logger.info("- Bootstrap VM is ready") 
 
@@ -199,7 +203,7 @@ class CSah(InfraHost):
 
         def complete_bootstrap_process(self):
             logger.info("Wait for the bootstrap node services to be up")
-            cmd = 'su - core -c \'ssh -o "StrictHostKeyChecking no " bootstrap journalctl | grep \'bootkube.service complete\'\''
+            cmd = f'su - core -c \'ssh -o "StrictHostKeyChecking no " {self.bootstrap_name} journalctl | grep \'bootkube.service complete\'\''
             bBootStrapReady = False
             while bBootStrapReady is False:
                 journal =  Ssh.execute_command_tty("localhost",
@@ -259,7 +263,10 @@ class CSah(InfraHost):
             cmd = 'rm -rf instackenv.json'
             subprocess.call(cmd, shell=True, cwd='/home/ansible/')
 
-            nodes = self.settings.controller_nodes  + self.settings.compute_nodes
+            if self.settings.cluster_type == '3-node':
+                nodes = self.settings.controller_nodes
+            else:
+                nodes = self.settings.controller_nodes + self.settings.compute_nodes
             cmd = "./discover_nodes.py  -u " + \
                 self.settings.ipmi_user + \
                 " -p '" + self.settings.ipmi_pwd + "'"
@@ -276,9 +283,10 @@ class CSah(InfraHost):
             for node in self.settings.controller_nodes:
                 node_id = node.idrac_ip
                 json_config[node_id]["pxe_nic"] = self.settings.controllers_pxe_nic
-            for node in self.settings.compute_nodes:
-                node_id = node.idrac_ip
-                json_config[node_id]["pxe_nic"] = self.settings.computes_pxe_nic
+            if self.settings.cluster_type != '3-node':
+                for node in self.settings.compute_nodes:
+                    node_id = node.idrac_ip
+                    json_config[node_id]["pxe_nic"] = self.settings.computes_pxe_nic
             if json_config.items():
                 cmd += "-j '{}'".format(json.dumps(json_config))
             subprocess.call(cmd, shell=True, cwd='/home/ansible/JetPack/src/pilot')
@@ -297,14 +305,15 @@ class CSah(InfraHost):
                                          diskname_master=self.settings.boot_disk_controllers,
                                          diskname_worker=self.settings.boot_disk_computes,
                                          dns_forwarder=self.settings.name_server,
-                                         cluster_name=self.settings.cluster_name
+                                         cluster_name=self.settings.cluster_name,
+                                         cluster_type=self.settings.cluster_type
                                          )                
             gen_inv_file.run()
             logger.debug("add pull secret to inventory")
             with open('generated_inventory', 'a') as file:
                 file.write('    pull_secret_file: pullsecret')
 
-            logger.debug("copy generated inventory filei & pullsecret")
+            logger.debug("copy generated inventory file & pullsecret")
             shutil.copyfile(self.settings.pull_secret_file, '/home/ansible/files/pullsecret')
             shutil.copyfile('generated_inventory', '/home/ansible/JetPack/src/pilot/ansible/generated_inventory') 
 
