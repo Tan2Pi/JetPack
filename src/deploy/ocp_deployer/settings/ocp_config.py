@@ -63,7 +63,7 @@ class OCP_Settings:
             self.controllers_pxe_nic = deploy_settings['control_nodes_pxe_interface']
             self.boot_disk_controllers = deploy_settings['boot_disk_controllers']
             
-            if self.cluster_name != '3-node':
+            if self.cluster_type != '3-node':
                 self.computes_pxe_nic = deploy_settings['compute_nodes_pxe_interface']
                 self.boot_disk_computes = deploy_settings['boot_disk_computes']
             
